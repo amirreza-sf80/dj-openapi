@@ -1,0 +1,35 @@
+[[repos]]
+repo = "https://github.com/adamchainz/django-upgrade"
+rev = "1.31.1"
+hooks = [
+  { id = "django-upgrade", args = ["--target-version", "6.1"] },
+]
+
+[[repos]]
+repo = "https://github.com/astral-sh/ruff-pre-commit"
+rev = "v0.16.2"
+hooks = [
+  { id = "ruff-check" },
+  { id = "ruff-format" },
+]
+
+[[repos]]
+repo = "https://github.com/codespell-project/codespell"
+rev = "v2.4.3"
+hooks = [
+  { id = "codespell",  additional_dependencies = ["tomli"]},
+]
+
+[[repos]]
+repo = "https://github.com/abravalheri/validate-pyproject"
+rev = "v0.25"
+hooks = [
+  { id = "validate-pyproject" },
+]
+
+[[repos]]
+repo = "https://github.com/asottile/pyupgrade"
+rev = "v3.21.2"
+hooks = [
+  { id = "pyupgrade" },
+]

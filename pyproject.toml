@@ -1,0 +1,52 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "dj-openapi"
+version = "0.1.0"
+description = "simple openAPI generation for django"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+dependencies = ["django>=6.1"]
+maintainers = [
+    {name = "amirreza sohrabi far",email = "amir.rsf1380@gmail.com"},
+]
+classifiers = [
+    "Development Status :: 1 - Planning",
+    "Environment :: Web Environment",
+    "Framework :: Django :: 6.1",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Documentation",
+    "Topic :: Internet :: WWW/HTTP",
+    "Topic :: Software Development :: Code Generators",
+    "Topic :: Software Development :: Libraries",
+]
+[project.urls]
+Homepage = "https://github.com/amirreza-sf80/dj-openapi"
+Source = "https://github.com/amirreza-sf80/dj-openapi"
+Issues = "https://github.com/amirreza-sf80/dj-openapi/issues"
+
+[dependency-groups]
+dev = [
+    "django-types>=0.24.0",
+]
+ipython = [
+    "ipython>=9.16.1",
+]
+prek = [
+    "prek>=0.4.13",
+]
+
+[tool.ruff]
+line-length = 100
