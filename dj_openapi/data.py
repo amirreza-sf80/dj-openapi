@@ -16,6 +16,7 @@ class Metadata:
     tags: Iterable[str] | None
     request: Iterable[MODEL] | None
     response: dict[STATUS_CODE, MODEL | Iterable[MODEL]] | None
+    form: Iterable[MODEL] | None
 
 
 @dataclass(unsafe_hash=True)
