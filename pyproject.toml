@@ -37,9 +37,15 @@ Homepage = "https://github.com/amirreza-sf80/dj-openapi"
 Source = "https://github.com/amirreza-sf80/dj-openapi"
 Issues = "https://github.com/amirreza-sf80/dj-openapi/issues"
 
+[project.optional-dependencies]
+attrs = ["attrs", "cattrs", "django-cattrs-fields"]
+
 [dependency-groups]
 dev = [
     "django-types>=0.24.0",
+    "django-cmd",
+    "msgspec>=0.21.1",
+    "whitenoise",
 ]
 ipython = [
     "ipython>=9.16.1",
@@ -48,5 +54,11 @@ prek = [
     "prek>=0.4.13",
 ]
 
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "tests.conf.settings"
+
+[tool.django]
+settings = "tests.conf.settings"
+
 [tool.ruff]
-line-length = 100
+line-length = 88
