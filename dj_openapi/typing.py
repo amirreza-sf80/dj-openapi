@@ -3,20 +3,31 @@ from typing import Any, Literal, Protocol
 
 from django.urls import URLPattern, URLResolver
 
-from dj_openapi.data import API, MODEL, STATUS_CODE, URL, Components, PathItem, Schema
+from dj_openapi.data import (
+    API,
+    MODEL,
+    STATUS_CODE,
+    URL,
+    AnySchema,
+    Components,
+    PathItem,
+    QueryParam,
+)
 
 type PATH_PARAM_PARSER = Callable[[str], tuple[str, list[str]]]
 type SUMMARY_TRANSFORMER = Callable[[Callable, str], str | None]
 type DESCRIPTION_TRANSFORMER = Callable[[Callable, str], str | None]
-type DECORATOR_FIELDS = Literal["qs", "request_body", "response", "form_body", "tags"]
+type DECORATOR_FIELDS = Literal[
+    "qs", "request_body", "response_body", "form_body", "tags", "content_type"
+]
 
-type QUERY_STRING = dict[str, type] | None
+type QUERY_STRING = dict[str, type | QueryParam | Any] | None
 type RESPONSE_BODY = dict[STATUS_CODE, MODEL | Iterable[MODEL]] | None
 type REQUEST_BODY = MODEL | Iterable[MODEL] | None
 type FORM_BODY = MODEL | Iterable[MODEL] | None
 
 type Predicate = Callable[[Any], bool]
-type BuildHook = Callable[[Any], Schema]
+type BuildHook = Callable[[Any, bool], AnySchema]
 
 
 class SchemaProtocol(Protocol):

@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+import builtins
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from enum import Enum, unique
-from typing import Literal
+from typing import Any, Literal
 
 # NOTE: technically, these are frozen classes, but since the code using them is limited,
 # and since these are internal API, and doing frozen=True has a performance penalty (albeit small),
@@ -15,14 +16,69 @@ type METHOD = Literal[
 ]
 
 
+@dataclass
+class QueryParam:
+    type: builtins.type | Any  # TODO: support list[str], dict[str, str] and the like
+    description: str
+    required: bool = False
+
+
+# ------------------- security ----------------------------------------------
+type OAuthFlowKinds = Literal[
+    "implicit", "authorizationCode", "password", "clientCredentials"
+]
+
+
+@dataclass
+class OAuth2Flows:
+    scopes: dict[str, str] = field(default_factory=dict)
+    authorization_url: str | None = None
+    token_url: str | None = None
+    refresh_url: str | None = None
+
+
+@dataclass
+class ApiKey:
+    name: str
+    kind: Literal["query", "header", "cookie"] = "header"
+    description: str | None = None
+
+
+@dataclass
+class Http:
+    name: str
+    scheme: Literal["basic", "bearer"]
+    bearer_format: str | None = None  # only if scheme is bearer (bearerFormat)
+
+
+@dataclass
+class OAuth2:
+    name: str
+    flows: dict[OAuthFlowKinds, OAuth2Flows]
+    scopes: list[str]
+    description: str | None = None
+
+
+@dataclass
+class OpenId:
+    name: str
+    connect_url: str  # (openIdConnectUrl)
+    scopes: list[str]
+
+
+type Security = ApiKey | Http | OAuth2 | OpenId
+
+
 # ------------------- information about endpoints ---------------------------
 @dataclass
 class DecoratorFields:
-    qs: dict[str, type] | None = None
+    qs: dict[str, type | QueryParam] | None = None
     request_body: Iterable[MODEL] | MODEL | None = None
-    response: dict[STATUS_CODE, Iterable[MODEL] | MODEL] | None = None
+    response_body: dict[STATUS_CODE, Iterable[MODEL] | MODEL] | None = None
     form_body: Iterable[MODEL] | MODEL | None = None
     tags: Sequence[str] = field(default_factory=list)
+    content_type: Sequence[MediaTypeName] | MediaTypeName = "application/json"
+    security: Security | None = None
 
 
 @dataclass(unsafe_hash=True)
@@ -30,11 +86,13 @@ class Metadata:
     """data that is set on views by decorators"""
 
     method: METHOD
-    qs: dict[str, type] | None
+    qs: dict[str, type | Any | QueryParam] | None
     request: Iterable[MODEL] | MODEL | None
     response: dict[STATUS_CODE, Iterable[MODEL] | MODEL] | None
     form: Iterable[MODEL] | MODEL | None
     tags: Sequence[str] = field(default_factory=list)
+    content_type: Iterable[MediaTypeName] | MediaTypeName = "application/json"
+    security: Security | None = None
 
 
 @dataclass(unsafe_hash=True)
@@ -59,10 +117,7 @@ class Reference:
 
 @dataclass
 class Schema:
-    """The generic schema base class.
-
-    Consider using a specialized version (like `IntegerSchema`) instead.
-    """
+    """The generic schema base class."""
 
     @unique
     class Type(Enum):
@@ -96,12 +151,6 @@ class OneOfSchema:
 @dataclass
 class MediaType:
     schema: AnySchema | Reference
-
-
-# MediaTypeNames are like `application/json`.
-type MediaTypeName = str
-# HTTP status codes
-type StatusCodeType = str
 
 
 def get_http_response_description(stat: int | Literal["default"]) -> str:
@@ -177,6 +226,12 @@ def get_http_response_description(stat: int | Literal["default"]) -> str:
     return responses[stat]
 
 
+# MediaTypeNames are like `application/json`.
+type MediaTypeName = str
+# HTTP status codes
+type StatusCodeType = str
+
+
 @dataclass
 class Response:
     description: str
@@ -195,6 +250,7 @@ class Parameter:
     name: str
     kind: Kind
     required: bool = False
+    description: str | None = None
     schema: AnySchema | Reference | None = None
 
 
@@ -205,13 +261,8 @@ class RequestBody:
     required: bool = False
 
 
-# TODO: all three securitySchemes need custom handling of dataclasses.asdict
-# so the field names that don't match the openAPI names are fixed
-
-
 @dataclass
 class ApiKeySecurityScheme:
-    name: str
     in_: Literal["query", "header", "cookie"]  # (in)
     description: str | None = None
     type: Literal["apiKey"] = "apiKey"
@@ -220,14 +271,37 @@ class ApiKeySecurityScheme:
 @dataclass
 class HttpSecurityScheme:
     scheme: Literal["basic", "bearer"]
-    bearer_format: str | None = None  # only if scheme is bearer (bearerFormat)
+    bearerFormat: str | None = None  # only if scheme is bearer
     type: Literal["http"] = "http"
 
 
 @dataclass
+class OAuth2SecuritySchemeFlows:
+    scopes: dict[str, str] = field(default_factory=dict)
+    authorizationUrl: str | None = None
+    tokenUrl: str | None = None
+    refreshUrl: str | None = None
+
+
+@dataclass
+class OAuth2SecurityScheme:
+    flows: dict[OAuthFlowKinds, OAuth2SecuritySchemeFlows]
+    description: str | None = None
+    type: Literal["oauth2"] = "oauth2"
+
+
+@dataclass
 class OpenIdSecurityScheme:
-    open_id_connect_url: str  # (openIdConnectUrl)
+    openIdConnectUrl: str
     type: Literal["openIdConnect"] = "openIdConnect"
+
+
+type SecurityScheme = (
+    ApiKeySecurityScheme
+    | HttpSecurityScheme
+    | OAuth2SecurityScheme
+    | OpenIdSecurityScheme
+)
 
 
 @dataclass
@@ -239,18 +313,19 @@ class Info:
 @dataclass
 class Components:
     schemas: dict[str, AnySchema | Reference]
-    security_schemes: Mapping[str, ApiKeySecurityScheme] = field(default_factory=dict)
+    security_schemes: Mapping[str, SecurityScheme] = field(default_factory=dict)
 
 
 @dataclass
 class Operation:
     responses: dict[StatusCodeType, Response]
     parameters: list[Parameter] = field(default_factory=list)
-    request_body: RequestBody | None = None
+    requestBody: RequestBody | None = None
     summary: str | None = None
     tags: Sequence[str] = field(default_factory=list)
     operationId: str | None = None
     description: str | None = None
+    security: list[dict[str, list[str]]] | None = None
 
 
 @dataclass

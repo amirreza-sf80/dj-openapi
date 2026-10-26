@@ -9,11 +9,14 @@ from django.urls.resolvers import RoutePattern
 from django.utils.module_loading import import_string
 
 from dj_openapi.data import API, Info, OpenAPI
+from dj_openapi.settings import *
 from dj_openapi.typing import DISCOVERER, PATTERNS, SchemaProtocol
 
 
-def discoverer(patterns: PATTERNS, prefix="", exclude=None) -> list[API]:
-    api_patterns: list[API] = list()
+def discoverer(
+    patterns: PATTERNS, prefix: str = "", exclude: set | None = None
+) -> list[API]:
+    api_patterns: list[API] = []
 
     def _inner(patterns: Iterable[URLPattern | URLResolver], prefix):
         for i in patterns:
@@ -23,16 +26,18 @@ def discoverer(patterns: PATTERNS, prefix="", exclude=None) -> list[API]:
                 _route = i.pattern._regex
 
             if isinstance(i, URLPattern):
-                view = i.callback
-                api = getattr(view, "api", False)
-                if not api:
-                    continue
                 name = i.name
                 if exclude and name in exclude:
                     continue
+
+                view = i.callback
+                metadata = getattr(view, "metadata", None)
+                if not metadata:
+                    continue
                 url = f"{prefix}{_route}"
-                metadata = view.metadata  # ty: ignore[unresolved-attribute]
-                api_patterns.append(API(view=view, url=url, name=name, metadata=metadata))
+                api_patterns.append(
+                    API(view=view, url=url, name=name, metadata=metadata)
+                )
             else:
                 _inner(i.url_patterns, _route)  # ty: ignore[invalid-argument-type]
 
@@ -68,27 +73,6 @@ def default_description_transformer(handler: Callable, name: str) -> str | None:
     return getattr(handler, "__doc__", None)
 
 
-OPENAPI_TITLE = getattr(settings, "DJANGO_OPENAPI_TITLE", "OpenAPI")
-OPENAPI_VERSION = getattr(settings, "DJANGO_OPENAPI_VERSION", "1.0")
-OPENAPI_PREFIX = getattr(settings, "DJANGO_OPENAPI_PREFIX", "")
-OPENAPI_EXCLUDE = getattr(settings, "DJANGO_OPENAPI_EXCLUDE", None)
-OPENAPI_SCHEMA_HANDLER = getattr(
-    settings, "DJANGO_OPENAPI_SCHEMA_HANDLER", ""
-)  # TODO: provide a default
-OPENAPI_DISCOVERER = getattr(settings, "DJANGO_OPENAPI_DISCOVERER", "")
-OPENAPI_PATH_PARSER = getattr(settings, "DJANGO_OPENAPI_PATH_PARSER", "")
-OPENAPI_DESCRIPTION_TRANSFORMER = getattr(
-    settings,
-    "DJANGO_OPENAPI_DESCRIPTION_TRANSFORMER",
-    "",
-)
-OPENAPI_SUMMARY_TRANSFORMER = getattr(
-    settings,
-    "DJANGO_OPENAPI_SUMMARY_TRANSFORMER",
-    "",
-)
-
-
 @lru_cache
 def make_openapi_spec(
     title: str = OPENAPI_TITLE,
@@ -96,12 +80,16 @@ def make_openapi_spec(
     exclude: set[str] | None = OPENAPI_EXCLUDE,
     prefix: str = OPENAPI_PREFIX,
     patterns: Iterable[URLPattern | URLResolver] | None = None,
+    discoverer_func: DISCOVERER | None = None,
 ) -> OpenAPI:
     if not patterns:
         url_conf = import_module(settings.ROOT_URLCONF)
         patterns: Iterable[URLPattern | URLResolver] = url_conf.urlpatterns
 
-    _discoverer: DISCOVERER = import_string(OPENAPI_DISCOVERER) if OPENAPI_DISCOVERER else discoverer  # fmt: skip
+    if discoverer_func:
+        _discoverer = discoverer_func
+    else:
+        _discoverer: DISCOVERER = import_string(OPENAPI_DISCOVERER) if OPENAPI_DISCOVERER else discoverer  # fmt: skip  # ty: ignore[invalid-assignment]
     api_patterns = _discoverer(patterns, prefix, exclude)
 
     SchemaHandler: type[SchemaProtocol] = import_string(OPENAPI_SCHEMA_HANDLER)

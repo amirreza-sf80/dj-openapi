@@ -1,14 +1,5 @@
-file 
-for request, it should be `format=binary`
-for response, it can be `binary`, `uri` or `base64`
-
-use build rules in `get_schema_type`
-
-choose cattrs serializer based on what user wants
-allow for making custom serializers 
-
-allow for other content-types
-
 allow for choosing specific schema builder for a view
 
-management command to dump openAPI to stdout
+allow for adding examples for fields and parameters
+
+auto schema (choose the right builder for each class automatically)
