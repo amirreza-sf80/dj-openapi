@@ -10,7 +10,9 @@ readme = "README.md"
 requires-python = ">=3.12"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
-dependencies = ["django>=6.1"]
+dependencies = [
+    "django>=6.1",
+]
 maintainers = [
     {name = "amirreza sohrabi far",email = "amir.rsf1380@gmail.com"},
 ]
@@ -38,7 +40,9 @@ Source = "https://github.com/amirreza-sf80/dj-openapi"
 Issues = "https://github.com/amirreza-sf80/dj-openapi/issues"
 
 [project.optional-dependencies]
-attrs = ["attrs", "cattrs", "django-cattrs-fields"]
+attrs = ["attrs", "cattrs"]
+fields = ["django-cattrs-fields"]
+yaml = ["pyyaml>=6.0.3"]
 
 [dependency-groups]
 dev = [
