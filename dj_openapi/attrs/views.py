@@ -8,10 +8,10 @@ from .structure import json_serializer as openapi_converter
 
 def serve_openapi(request):
     if JSON_DUMP_PATH.exists():
-        with open(JSON_DUMP_PATH, "r") as f:
+        with open(JSON_DUMP_PATH) as f:
             return HttpResponse(f.read(), status=200, content_type="application/json")
     if YAML_DUMP_PATH.exists():
-        with open(YAML_DUMP_PATH, "r") as f:
+        with open(YAML_DUMP_PATH) as f:
             return HttpResponse(f.read(), status=200, content_type="application/yaml")
 
     openapi = make_openapi_spec()

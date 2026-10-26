@@ -40,10 +40,10 @@ from dj_openapi.data import (
     Operation,
     Parameter,
     PathItem,
+    QueryParam,
     Reference,
     RequestBody,
     Response,
-    QueryParam,
     Schema,
     SecurityScheme,
     StatusCodeType,
@@ -344,7 +344,7 @@ class SchemaBuilder(BaseSchemaBuilder):
         if is_tuple(arg):
             inner = get_args(arg)
             if len(inner) > 1 and inner[1] is not ...:
-                raise TypeError("tuples need to be homogenous")
+                raise TypeError("tuples need to be homogeneous")
             return ArraySchema(self._handle_array(arg, _))
 
         if is_sequence(arg):
