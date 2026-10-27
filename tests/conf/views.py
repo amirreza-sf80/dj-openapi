@@ -21,7 +21,7 @@ def my_view(request):
     content_type=["application/json", "text/plain"],
     security=Http(name="whooo", scheme="basic"),
 )
-def person_view_content(request):
+def person_view_content(request, name):
     return HttpResponse()
 
 
