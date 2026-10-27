@@ -4,8 +4,17 @@ from types import NoneType
 from typing import Any
 
 from dj_openapi.data import Schema
-from dj_openapi.settings import USER_BUILD_RULES
+from dj_openapi.settings import OPENAPI_PATH_TYPES, USER_BUILD_RULES
 from dj_openapi.typing import BuildHook, Predicate
+
+STR_TO_PYTHON = {
+    "str": str,
+    "int": int,
+    "slug": str,
+    "uuid": str,
+    "path": str,
+}
+STR_TO_PYTHON.update(OPENAPI_PATH_TYPES)
 
 PYTHON_PRIMITIVES_TO_OPENAPI: dict[type | None, Schema] = {
     str: Schema(Schema.Type.STRING),

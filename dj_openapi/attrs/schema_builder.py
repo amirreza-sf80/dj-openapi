@@ -16,6 +16,7 @@ from django.core.files.uploadedfile import UploadedFile
 
 from dj_openapi.base_schema_builder import (
     PYTHON_PRIMITIVES_TO_OPENAPI,
+    STR_TO_PYTHON,
     BaseSchemaBuilder,
 )
 from dj_openapi.data import (
@@ -99,7 +100,7 @@ class SchemaBuilder(BaseSchemaBuilder):
                     self.summary_reader,
                     self.description_reader,
                 )
-            url = api.url if api.url else "/"
+            url = self.path_param_parser(api.url)[0] if api.url else "/"
             if not url.startswith("/"):
                 url = f"/{url}"
             self.path_items[url] = PathItem(**item)
@@ -108,7 +109,7 @@ class SchemaBuilder(BaseSchemaBuilder):
         self,
         api: API,
         metadata: Metadata,
-        path_param_parser,
+        path_param_parser: PATH_PARAM_PARSER,
         summary_reader,
         description_reader,
     ) -> Operation:
@@ -117,21 +118,20 @@ class SchemaBuilder(BaseSchemaBuilder):
         params: list[Parameter] = []
         security = None
         sig = signature(api.view, eval_str=True)
-        path_params = path_param_parser(api.url)
-        if path_params:
-            path_params = path_params[1]
+        path = path_param_parser(api.url)
+        path_params = path[1]
 
         # path parameters
         for path_param in path_params:
             if path_param not in sig.parameters:
                 raise ValueError(f"Path parameter {path_param} not found")
-            t = sig.parameters[path_param].annotation
+            t = STR_TO_PYTHON.get(path[2], None)
             params.append(
                 Parameter(
                     path_param,
                     Parameter.Kind.PATH,
                     True,
-                    PYTHON_PRIMITIVES_TO_OPENAPI.get(t),
+                    schema=PYTHON_PRIMITIVES_TO_OPENAPI.get(t),
                 )
             )
 

@@ -46,22 +46,29 @@ def discoverer(
 
 
 _angle_path_with_conv_pattern = compile(r"<([a-zA-Z_]+:[a-zA-Z_]+)>")
-_angle_path_pattern = compile(r"<([a-zA-Z_]+)>")
-
-
-def strip_path_param_prefix(path: str) -> str:
-    return sub(
-        _angle_path_with_conv_pattern, lambda m: f"{{{m.group(1).split(':')[1]}}}", path
-    )
+_curly_path_with_conv_pattern = compile(r"{([a-zA-Z_]+:[a-zA-Z_]+)}")
+_angle_path_pattern = compile(r"<([a-zA-Z_:]+)>")
+_curly_path_pattern = compile(r"{([a-zA-Z_]+)}")
+_path_pattern = compile(r"<([a-zA-Z_]+)>")
 
 
 def parse_angle_path_params(path_str: str) -> list[str]:
-    return [p.split(":")[0] for p in _angle_path_pattern.findall(path_str)]
+    return [p.split(":")[-1] for p in _angle_path_pattern.findall(path_str)]
 
 
-def parse_path_parameters(path):
+def strip_path_param_prefix(path: str) -> tuple[str, str | None]:
+    t = None
+    a = _angle_path_with_conv_pattern.search(path)
+    if a:
+        t = a.group(1).split(":")[0]
+    return sub(
+        _angle_path_with_conv_pattern, lambda m: f"{{{m.group(1).split(':')[1]}}}", path
+    ), t
+
+
+def parse_path_parameters(path: str):
     clean = strip_path_param_prefix(path)
-    return parse_angle_path_params(clean)
+    return clean[0], parse_angle_path_params(path), clean[1]
 
 
 def default_summary_transformer(handler: Callable, name: str) -> str:

@@ -14,7 +14,7 @@ from dj_openapi.data import (
     QueryParam,
 )
 
-type PATH_PARAM_PARSER = Callable[[str], tuple[str, list[str]]]
+type PATH_PARAM_PARSER = Callable[[str], tuple[str, list[str], str]]
 type SUMMARY_TRANSFORMER = Callable[[Callable, str], str | None]
 type DESCRIPTION_TRANSFORMER = Callable[[Callable, str], str | None]
 type DECORATOR_FIELDS = Literal[
