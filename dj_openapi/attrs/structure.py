@@ -16,9 +16,10 @@ from dj_openapi.data import (
     Schema,
 )
 from dj_openapi.settings import JSON_SERIALIZER, YAML_SERIALIZER
+from dj_openapi.typing import SerializerProtocol
 
-json_serializer = None
-yaml_serializer = None
+json_serializer: SerializerProtocol | None = None
+yaml_serializer: SerializerProtocol | None = None
 
 if JSON_SERIALIZER:
     maker = JSON_SERIALIZER.endswith("make_converter")

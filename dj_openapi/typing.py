@@ -1,5 +1,5 @@
 from collections.abc import Callable, Iterable
-from typing import Any, Literal, Protocol
+from typing import Any, Literal, Protocol, TypeVar
 
 from django.urls import URLPattern, URLResolver
 
@@ -47,3 +47,13 @@ class SchemaProtocol(Protocol):
 
 type PATTERNS = Iterable[URLPattern | URLResolver]
 type DISCOVERER = Callable[[PATTERNS, str, set[str] | None], set[API]]
+
+
+T = TypeVar("T")
+
+
+class SerializerProtocol(Protocol):
+    def dumps(self, obj: Any, unstructure_as: Any = None, **kwargs: Any): ...
+    def loads(self, data: bytes | str, cl: type[T], **kwargs: Any) -> T: ...
+    def unstructure(self, obj: Any, unstructure_as: Any = None) -> Any: ...
+    def structure(self, obj: Any, cl: type[T]) -> T: ...

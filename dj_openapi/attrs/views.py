@@ -1,9 +1,10 @@
 from django.http import HttpResponse
 
 from dj_openapi.discover import make_openapi_spec
+from dj_openapi.exceptions import SerializerNotConfigured
 from dj_openapi.settings import JSON_DUMP_PATH, YAML_DUMP_PATH
 
-from .structure import json_serializer as openapi_converter
+from .structure import json_serializer, yaml_serializer
 
 
 def serve_openapi(request):
@@ -16,6 +17,13 @@ def serve_openapi(request):
 
     openapi = make_openapi_spec()
 
-    un = openapi_converter.unstructure(openapi)  # ty: ignore[unresolved-attribute]
-    payload = openapi_converter.dumps(un)  # ty: ignore[unresolved-attribute]
-    return HttpResponse(payload, status=200, content_type="application/json")
+    if json_serializer:
+        un = json_serializer.unstructure(openapi)
+        payload = json_serializer.dumps(un)
+        return HttpResponse(payload, status=200, content_type="application/json")
+    elif yaml_serializer:
+        un = yaml_serializer.unstructure(openapi)
+        payload = yaml_serializer.dumps(un)
+        return HttpResponse(payload, status=200, content_type="application/yaml")
+    else:
+        raise SerializerNotConfigured()
