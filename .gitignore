@@ -12,3 +12,6 @@ uv.lock
 .python-version
 
 **/staticfiles/
+
+*/openapi.json
+*/openapi.yaml
