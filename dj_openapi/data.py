@@ -135,6 +135,7 @@ class Schema:
     additionalProperties: bool | AnySchema | Reference = False
     enum: list[str] | None = None
     required: list[str] = field(default_factory=list)
+    example: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass

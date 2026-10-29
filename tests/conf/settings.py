@@ -55,4 +55,5 @@ ALLOWED_HOSTS = ["127.0.0.1", "localhost"]
 INTERNAL_IPS = ("127.0.0.1",)
 
 DJANGO_OPENAPI_SCHEMA_HANDLER = "dj_openapi.attrs.schema_builder.SchemaBuilder"
-DJANGO_OPENAPI_YAML_SERIALIZER = "pyyaml"
+DJANGO_OPENAPI_YAML_SERIALIZER = "tests.conf.serializer.yaml_serializer"
+DJANGO_OPENAPI_JSON_SERIALIZER = "tests.conf.serializer.json_serializer"

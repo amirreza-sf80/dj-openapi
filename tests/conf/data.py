@@ -1,8 +1,8 @@
-from datetime import date
+from datetime import date, datetime, time
 from decimal import Decimal
 from typing import Any, Literal
 
-from attrs import define
+from attrs import define, field
 from django_cattrs_fields.fields import (
     BooleanField,
     CharField,
@@ -44,11 +44,15 @@ class Person:
 
 @define
 class Workplace:
-    name: CharField
-    address: CharField
-    is_active: BooleanField
-    income: DecimalField
-    employe_cound: IntegerField
-    creation_date: DateField
-    opening_time: TimeField
-    start_holidy: DateTimeField
+    name: CharField = field(metadata={"example": "linux HQ."})
+    address: CharField = field(metadata={"example": "linus' home"})
+    is_active: BooleanField = field(metadata={"example": True})
+    income: DecimalField = field(metadata={"example": 0.0})
+    employe_count: IntegerField = field(metadata={"example": 1})
+    creation_date: DateField = field(
+        metadata={"example": date(year=1991, month=9, day=17)}
+    )
+    opening_time: TimeField = field(metadata={"example": time(hour=7, minute=0)})
+    start_holidy: DateTimeField = field(
+        metadata={"example": datetime(year=2060, month=12, day=29, hour=23, minute=59)}
+    )

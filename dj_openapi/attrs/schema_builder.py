@@ -289,6 +289,7 @@ class SchemaBuilder(BaseSchemaBuilder):
         if is_generic(type):
             self.generic_mapping.update(self._make_generic_mapping(type))
         required = []
+        example = {}
 
         for a in fields(type):
             if a.type is None:
@@ -303,7 +304,16 @@ class SchemaBuilder(BaseSchemaBuilder):
             if a.default is NOTHING:
                 required.append(a.name)
 
-        return Schema(type=Schema.Type.OBJECT, properties=properties, required=required)
+            if a.metadata:
+                e = a.metadata.get("example")
+                example[a.name] = e
+
+        return Schema(
+            type=Schema.Type.OBJECT,
+            properties=properties,
+            required=required,
+            example=example,
+        )
 
     def build_security_component(self, type) -> SecurityScheme:
         if isinstance(type, ApiKey):
