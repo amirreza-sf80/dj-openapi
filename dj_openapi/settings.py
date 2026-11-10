@@ -19,13 +19,11 @@ JSON_SERIALIZER = serializers.get(_JSON_SERIALIZER, _JSON_SERIALIZER)
 YAML_SERIALIZER = serializers.get(_YAML_SERIALIZER, _YAML_SERIALIZER)
 
 
-JSON_DUMP_NAME = getattr(settings, "DJANGO_OPENAPI_JSON_DUMP_NAME", "openapi.json")
 JSON_DUMP_PATH = getattr(
-    settings, "DJANGO_OPENAPI_DUMP_PATH", BASE_DIR / JSON_DUMP_NAME
+    settings, "DJANGO_OPENAPI_DUMP_PATH", BASE_DIR / "openapi.json"
 )
-YAML_DUMP_NAME = getattr(settings, "DJANGO_OPENAPI_YAML_DUMP_NAME", "openapi.yaml")
 YAML_DUMP_PATH = getattr(
-    settings, "DJANGO_OPENAPI_YAML_DUMP_PATH", BASE_DIR / YAML_DUMP_NAME
+    settings, "DJANGO_OPENAPI_YAML_DUMP_PATH", BASE_DIR / "openapi.yaml"
 )
 if not isinstance(JSON_DUMP_PATH, Path):
     JSON_DUMP_PATH = Path(JSON_DUMP_PATH)
