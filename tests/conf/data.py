@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from datetime import date, datetime, time
 from decimal import Decimal
 from typing import Any, Literal
@@ -56,3 +57,12 @@ class Workplace:
     start_holidy: DateTimeField = field(
         metadata={"example": datetime(year=2060, month=12, day=29, hour=23, minute=59)}
     )
+
+
+@dataclass
+class School:
+    name: str
+    address: str
+    capacity: int
+    features: list[str]
+    personnel_and_role: dict[str, str]

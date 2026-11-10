@@ -1,8 +1,11 @@
 from collections.abc import Iterable
+from dataclasses import _MISSING_TYPE, is_dataclass
+from dataclasses import fields as dt_fields
 from inspect import signature
 from typing import Any, TypeAliasType
 
-from attrs import NOTHING, fields, has
+from attrs import NOTHING, has
+from attrs import fields as at_fields
 from cattrs._compat import (
     get_args,
     is_annotated,
@@ -238,8 +241,8 @@ class SchemaBuilder(BaseSchemaBuilder):
                 scope = sec.scopes
             else:
                 scope = []
-            security = [{metadata.security.name: scope}]
-            self.make_component(metadata.security)
+            security = [{sec.name: scope}]
+            self._security_components[sec.name] = self.build_security_component(sec)
 
         return Operation(
             resps,
@@ -265,7 +268,7 @@ class SchemaBuilder(BaseSchemaBuilder):
             if pred(type):
                 return hook(type, is_response)
 
-        if has(type):
+        if has(type) or is_dataclass(type):
             # components are build elsewhere, here we just reference the component
             name = self._name_for(type)
             if name not in self._components:
@@ -275,14 +278,11 @@ class SchemaBuilder(BaseSchemaBuilder):
         raise TypeError(f"type of {type} is not supported yet")
 
     def make_component(self, t: type, is_response=False):
-        if has(t):
+        if has(t) or is_dataclass(t):
             name = self._name_for(t)
             self._components[name] = self.build_attrs_component(
                 t, is_response=is_response
             )
-        else:
-            name = t.name  # ty: ignore[unresolved-attribute]
-            self._security_components[name] = self.build_security_component(t)
 
     def build_attrs_component(self, type: Any, is_response=False) -> Schema:
         properties = {}
@@ -290,6 +290,8 @@ class SchemaBuilder(BaseSchemaBuilder):
             self.generic_mapping.update(self._make_generic_mapping(type))
         required = []
         example = {}
+
+        fields = at_fields if has(type) else dt_fields
 
         for a in fields(type):
             if a.type is None:
@@ -301,7 +303,7 @@ class SchemaBuilder(BaseSchemaBuilder):
 
             schema = self.get_schema_for_type(a_type, is_response=is_response)
             properties[a.name] = schema
-            if a.default is NOTHING:
+            if a.default is NOTHING or isinstance(a.default, _MISSING_TYPE):
                 required.append(a.name)
 
             if a.metadata:

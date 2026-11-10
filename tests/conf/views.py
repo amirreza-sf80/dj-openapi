@@ -6,7 +6,7 @@ from django.http import HttpResponse
 from dj_openapi import get, head, open_api, options, post, trace
 from dj_openapi.data import ApiKey, Http, OAuth2, OAuth2Flows, OpenId, QueryParam
 
-from .data import Person, Workplace
+from .data import Person, School, Workplace
 
 
 @get(qs={"something": str}, tags=("things",), security=ApiKey(name="whee"))
@@ -116,4 +116,14 @@ def workplace_needs_qs_view(request):
 
 @get(qs={"whoo": QueryParam(required=False, description="no whoo qs", type=Decimal)})
 def workplace_no_need_qs_view(request):
+    return HttpResponse()
+
+
+@get(response_body={200: School}, tags="school")
+def school_detail(request):
+    return HttpResponse()
+
+
+@post(request_body=School, tags="school")
+def school_create(request):
     return HttpResponse()
