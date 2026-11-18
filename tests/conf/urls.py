@@ -6,6 +6,7 @@ from dj_openapi.attrs.views import (
 from dj_openapi.views import serve_elements, serve_redoc, serve_swaggerui
 
 from .views import (
+    movie_detail,
     my_view,
     person_post_view,
     person_view,
@@ -31,6 +32,7 @@ urlpatterns = [
     path("workplace/qs/noneed/", workplace_no_need_qs_view, name="workplace-qs-view"),
     path("school/detail/", school_detail, name="school-detail"),
     path("school/create/", school_create, name="school-create"),
+    path("movie/detail/", movie_detail, name="movie-detail"),
     path("openapi.json", serve_openapi),
     path("swagger/", serve_swaggerui),
     path("redoc/", serve_redoc),

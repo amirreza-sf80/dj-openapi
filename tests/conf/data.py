@@ -13,6 +13,7 @@ from django_cattrs_fields.fields import (
     IntegerField,
     TimeField,
 )
+from msgspec import Struct
 
 
 @define
@@ -66,3 +67,14 @@ class School:
     capacity: int
     features: list[str]
     personnel_and_role: dict[str, str]
+
+
+class Movie(Struct):
+    name: str
+    director: str
+    budget: Decimal
+    year: int
+    cast: list[str]
+    stuff: tuple[int, ...]
+    whee: dict[str, int]
+    wheee: dict[str, int | str]

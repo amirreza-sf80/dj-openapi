@@ -61,6 +61,44 @@ from dj_openapi.typing import (
     Predicate,
 )
 
+try:
+    from msgspec import Struct
+    from msgspec.inspect import (
+        NODEFAULT,
+        AnyType,
+        BoolType,
+        BytesType,
+        DateTimeType,
+        DateType,
+        DecimalType,
+        DictType,
+        Field,
+        FloatType,
+        IntType,
+        ListType,
+        LiteralType,
+        NoneType,
+        StrType,
+        TimeType,
+        TupleType,
+        Type,
+        UnionType,
+        VarTupleType,
+        type_info,
+    )
+
+    has_msgspec = True
+except ImportError:
+    has_msgspec = False
+
+    class Struct:
+        pass
+
+    class Type:
+        pass
+
+    NODEFAULT = object()
+
 
 def is_file(type):
     if is_annotated(type):
@@ -261,14 +299,14 @@ class SchemaBuilder(BaseSchemaBuilder):
         if isinstance(type, TypeAliasType):
             type = type.__value__
 
-        if type in self.generic_mapping:
+        if not isinstance(type, Type) and type in self.generic_mapping:
             type = self.generic_mapping[type]
 
         for pred, hook in self.build_rules:
             if pred(type):
                 return hook(type, is_response)
 
-        if has(type) or is_dataclass(type):
+        if has(type) or is_dataclass(type) or issubclass(type, Struct):
             # components are build elsewhere, here we just reference the component
             name = self._name_for(type)
             if name not in self._components:
@@ -278,11 +316,8 @@ class SchemaBuilder(BaseSchemaBuilder):
         raise TypeError(f"type of {type} is not supported yet")
 
     def make_component(self, t: type, is_response=False):
-        if has(t) or is_dataclass(t):
-            name = self._name_for(t)
-            self._components[name] = self.build_attrs_component(
-                t, is_response=is_response
-            )
+        name = self._name_for(t)
+        self._components[name] = self.build_attrs_component(t, is_response=is_response)
 
     def build_attrs_component(self, type: Any, is_response=False) -> Schema:
         properties = {}
@@ -291,22 +326,31 @@ class SchemaBuilder(BaseSchemaBuilder):
         required = []
         example = {}
 
-        fields = at_fields if has(type) else dt_fields
+        if issubclass(type, Struct):
+            fields: tuple[Field] = type_info(type).fields  # ty: ignore[missing-attribute]
 
-        for a in fields(type):
+        else:
+            f = at_fields if has(type) else dt_fields
+            fields = f(type)
+
+        for a in fields:
             if a.type is None:
                 continue
 
             a_type = a.type
-            if a_type in self.generic_mapping:
-                a_type = self.generic_mapping[a_type]
+            # if a_type in self.generic_mapping:
+            #     a_type = self.generic_mapping[a_type]
 
             schema = self.get_schema_for_type(a_type, is_response=is_response)
             properties[a.name] = schema
-            if a.default is NOTHING or isinstance(a.default, _MISSING_TYPE):
+            if (
+                a.default is NOTHING
+                or isinstance(a.default, _MISSING_TYPE)
+                or a.default is NODEFAULT
+            ):
                 required.append(a.name)
 
-            if a.metadata:
+            if not isinstance(a, Field) and a.metadata:
                 e = a.metadata.get("example")
                 example[a.name] = e
 
@@ -342,13 +386,17 @@ class SchemaBuilder(BaseSchemaBuilder):
     def default_build_rules(self) -> list[tuple[Predicate, BuildHook]]:
         """Set up the default build rules."""
         # For circular deps.
-        return super().default_build_rules() + [
+        rules = super().default_build_rules() + [
             (lambda t: is_tuple(t) or is_sequence(t), self._handle_array),
             (is_mapping, self._handle_mapping),
             (is_literal, self._handle_literal),
             (is_union_type, self._handle_union),
             (is_file, self._handle_file),
         ]
+
+        if has_msgspec:
+            rules.insert(0, (lambda t: isinstance(t, Type), self._handle_msgspec))
+        return rules
 
     def _handle_array(self, t, _) -> ArraySchema:
         args = get_args(t)
@@ -426,3 +474,55 @@ class SchemaBuilder(BaseSchemaBuilder):
     def _make_generic_name(self, type: type[Any]) -> str:
         """Used for generic attrs classes (Generic[int] instead of just Generic)."""
         return type.__name__ + "[" + ", ".join(t.__name__ for t in type.__args__) + "]"
+
+    def _handle_msgspec(self, type, _) -> AnySchema:
+        if isinstance(type, StrType):
+            return Schema(Schema.Type.STRING)
+        if isinstance(type, IntType):
+            return Schema(Schema.Type.INTEGER)
+        if isinstance(type, BoolType):
+            return Schema(Schema.Type.BOOLEAN)
+        if isinstance(type, FloatType):
+            return Schema(Schema.Type.NUMBER, format="double")
+        if isinstance(type, DecimalType):
+            return Schema(Schema.Type.NUMBER, format="double")
+        if isinstance(type, BytesType):
+            return Schema(Schema.Type.STRING, format="binary")
+        if isinstance(type, DateType):
+            return Schema(Schema.Type.STRING, format="date")
+        if isinstance(type, DateTimeType):
+            return Schema(Schema.Type.STRING, format="date-time")
+        if isinstance(type, TimeType):
+            return Schema(Schema.Type.STRING, format="time")
+        if isinstance(type, NoneType):
+            return Schema(Schema.Type.NULL)
+        if isinstance(type, ListType):
+            return ArraySchema(self._handle_msgspec(type.item_type, _))
+        if isinstance(type, TupleType):
+            if len(type.item_types) > 1:
+                raise TypeError("tuples need to be homogeneous")
+            return ArraySchema(self._handle_msgspec(type.item_types[0], _))
+        if isinstance(type, VarTupleType):
+            return ArraySchema(self._handle_msgspec(type.item_type, _))
+        if isinstance(type, DictType):
+            k = type.key_type
+            if not isinstance(k, (AnyType, StrType)):
+                raise TypeError(
+                    f"dictionary needs to have a key of type str or Any, used {k}"
+                )
+            v = self._handle_msgspec(type.value_type, _)
+            return Schema(Schema.Type.OBJECT, additionalProperties=v)
+        if isinstance(type, UnionType):
+            refs = []
+            for t in type.types:
+                refs.append(self._handle_msgspec(t, _))
+            return OneOfSchema(refs)
+        if isinstance(type, LiteralType):
+            literals = type.values
+            if type(literals[0] in PYTHON_PRIMITIVES_TO_OPENAPI):
+                schema = PYTHON_PRIMITIVES_TO_OPENAPI[type(literals[0])]
+                schema.enum = list(literals)
+                return schema
+            return Schema(Schema.Type.STRING, enum=list(literals))
+
+        raise ValueError(f"type of {type} is not supported")
