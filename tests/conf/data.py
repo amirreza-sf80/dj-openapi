@@ -78,3 +78,15 @@ class Movie(Struct):
     stuff: tuple[int, ...]
     whee: dict[str, int]
     wheee: dict[str, int | str]
+
+
+class AgeRate(Struct):
+    age_rate: Literal["R", "PG13", "PG", "G"]
+
+
+class Cinema(Struct):
+    address: str
+    playing: list[Movie]
+    age_rate: AgeRate
+    movie_times: dict[str, Movie]
+    owner: Person

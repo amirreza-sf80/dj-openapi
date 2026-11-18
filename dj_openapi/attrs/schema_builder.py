@@ -68,6 +68,7 @@ try:
         AnyType,
         BoolType,
         BytesType,
+        DataclassType,
         DateTimeType,
         DateType,
         DecimalType,
@@ -79,6 +80,7 @@ try:
         LiteralType,
         NoneType,
         StrType,
+        StructType,
         TimeType,
         TupleType,
         Type,
@@ -310,25 +312,25 @@ class SchemaBuilder(BaseSchemaBuilder):
             # components are build elsewhere, here we just reference the component
             name = self._name_for(type)
             if name not in self._components:
-                self.make_component(type, is_response=is_response)
+                self.make_component(type, name, is_response=is_response)
             return Reference(f"#/components/schemas/{name}")
 
         raise TypeError(f"type of {type} is not supported yet")
 
-    def make_component(self, t: type, is_response=False):
-        name = self._name_for(t)
-        self._components[name] = self.build_attrs_component(t, is_response=is_response)
+    def make_component(self, t: type, name, is_response=False):
+        self._components[name] = self.build_component(t, is_response=is_response)
 
-    def build_attrs_component(self, type: Any, is_response=False) -> Schema:
+    def build_component(self, type: Any, is_response=False) -> Schema:
         properties = {}
         if is_generic(type):
             self.generic_mapping.update(self._make_generic_mapping(type))
         required = []
         example = {}
 
-        if issubclass(type, Struct):
+        if isinstance(type, (StructType, DataclassType)):
+            fields = type.fields
+        elif issubclass(type, Struct):
             fields: tuple[Field] = type_info(type).fields  # ty: ignore[missing-attribute]
-
         else:
             f = at_fields if has(type) else dt_fields
             fields = f(type)
@@ -475,54 +477,75 @@ class SchemaBuilder(BaseSchemaBuilder):
         """Used for generic attrs classes (Generic[int] instead of just Generic)."""
         return type.__name__ + "[" + ", ".join(t.__name__ for t in type.__args__) + "]"
 
-    def _handle_msgspec(self, type, _) -> AnySchema:
-        if isinstance(type, StrType):
-            return Schema(Schema.Type.STRING)
-        if isinstance(type, IntType):
-            return Schema(Schema.Type.INTEGER)
+    def _handle_msgspec(self, type, _) -> AnySchema | Reference:
+        if isinstance(type, AnyType):
+            return Schema()
         if isinstance(type, BoolType):
             return Schema(Schema.Type.BOOLEAN)
-        if isinstance(type, FloatType):
-            return Schema(Schema.Type.NUMBER, format="double")
-        if isinstance(type, DecimalType):
-            return Schema(Schema.Type.NUMBER, format="double")
         if isinstance(type, BytesType):
             return Schema(Schema.Type.STRING, format="binary")
-        if isinstance(type, DateType):
-            return Schema(Schema.Type.STRING, format="date")
+        if isinstance(type, (DataclassType, StructType)):
+            return self._handle_msgspec_refrence(type, _)
         if isinstance(type, DateTimeType):
             return Schema(Schema.Type.STRING, format="date-time")
-        if isinstance(type, TimeType):
-            return Schema(Schema.Type.STRING, format="time")
+        if isinstance(type, DateType):
+            return Schema(Schema.Type.STRING, format="date")
+        if isinstance(type, DecimalType):
+            return Schema(Schema.Type.NUMBER, format="double")
+        if isinstance(type, DictType):
+            return self._handle_msgspec_dict(type, _)
+        if isinstance(type, FloatType):
+            return Schema(Schema.Type.NUMBER, format="double")
+        if isinstance(type, IntType):
+            return Schema(Schema.Type.INTEGER)
+        if isinstance(type, (ListType, TupleType, VarTupleType)):
+            return self._handle_msgspec_array(type, _)
+        if isinstance(type, LiteralType):
+            return self._handle_msgspec_literal(type, _)
         if isinstance(type, NoneType):
             return Schema(Schema.Type.NULL)
-        if isinstance(type, ListType):
-            return ArraySchema(self._handle_msgspec(type.item_type, _))
+        if isinstance(type, StrType):
+            return Schema(Schema.Type.STRING)
+        if isinstance(type, TimeType):
+            return Schema(Schema.Type.STRING, format="time")
+        if isinstance(type, UnionType):
+            return self._handle_msgspec_union(type, _)
+        raise ValueError(f"type of {type} is not supported")
+
+    def _handle_msgspec_dict(self, type, _) -> Schema:
+        k = type.key_type
+        if not isinstance(k, (AnyType, StrType)):
+            raise TypeError(
+                f"dictionary needs to have a key of type str or Any, used {k}"
+            )
+        v = self._handle_msgspec(type.value_type, _)
+        return Schema(Schema.Type.OBJECT, additionalProperties=v)
+
+    def _handle_msgspec_array(self, type, _) -> ArraySchema:
+        if isinstance(type, (ListType, VarTupleType)):
+            t = type.item_type
         if isinstance(type, TupleType):
             if len(type.item_types) > 1:
                 raise TypeError("tuples need to be homogeneous")
-            return ArraySchema(self._handle_msgspec(type.item_types[0], _))
-        if isinstance(type, VarTupleType):
-            return ArraySchema(self._handle_msgspec(type.item_type, _))
-        if isinstance(type, DictType):
-            k = type.key_type
-            if not isinstance(k, (AnyType, StrType)):
-                raise TypeError(
-                    f"dictionary needs to have a key of type str or Any, used {k}"
-                )
-            v = self._handle_msgspec(type.value_type, _)
-            return Schema(Schema.Type.OBJECT, additionalProperties=v)
-        if isinstance(type, UnionType):
-            refs = []
-            for t in type.types:
-                refs.append(self._handle_msgspec(t, _))
-            return OneOfSchema(refs)
-        if isinstance(type, LiteralType):
-            literals = type.values
-            if type(literals[0] in PYTHON_PRIMITIVES_TO_OPENAPI):
-                schema = PYTHON_PRIMITIVES_TO_OPENAPI[type(literals[0])]
-                schema.enum = list(literals)
-                return schema
-            return Schema(Schema.Type.STRING, enum=list(literals))
+            t = type.item_types[0]
+        return ArraySchema(self._handle_msgspec(t, _))
 
-        raise ValueError(f"type of {type} is not supported")
+    def _handle_msgspec_union(self, type, _) -> OneOfSchema:
+        refs = []
+        for t in type.types:
+            refs.append(self._handle_msgspec(t, _))
+        return OneOfSchema(refs)
+
+    def _handle_msgspec_literal(self, t, _) -> Schema:
+        literals = t.values
+        if type(literals[0] in PYTHON_PRIMITIVES_TO_OPENAPI):
+            schema = PYTHON_PRIMITIVES_TO_OPENAPI[type(literals[0])]
+            schema.enum = list(literals)
+            return schema
+        return Schema(Schema.Type.STRING, enum=list(literals))
+
+    def _handle_msgspec_refrence(self, t, _) -> Reference:
+        name = self._name_for(t.cls)
+        if name not in self._components:
+            self.make_component(t, name, is_response=_)
+        return Reference(f"#/components/schemas/{name}")

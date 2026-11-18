@@ -6,7 +6,7 @@ from django.http import HttpResponse
 from dj_openapi import get, head, open_api, options, post, trace
 from dj_openapi.data import ApiKey, Http, OAuth2, OAuth2Flows, OpenId, QueryParam
 
-from .data import Movie, Person, School, Workplace
+from .data import Cinema, Movie, Person, School, Workplace
 
 
 @get(qs={"something": str}, tags=("things",), security=ApiKey(name="whee"))
@@ -131,4 +131,9 @@ def school_create(request):
 
 @get(response_body={200: Movie}, tags="movie")
 def movie_detail(request):
+    return HttpResponse()
+
+
+@get(response_body={200: Cinema}, tags="movie")
+def cinema_detail(request):
     return HttpResponse()
