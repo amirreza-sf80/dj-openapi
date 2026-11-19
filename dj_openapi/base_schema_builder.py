@@ -3,7 +3,18 @@ from decimal import Decimal
 from types import NoneType
 from typing import Any
 
-from dj_openapi.data import Schema
+from dj_openapi.data import (
+    BoolSchema,
+    BytesSchema,
+    DateSchema,
+    DateTimeSchema,
+    DoubleSchema,
+    IntSchema,
+    NullSchema,
+    Schema,
+    StrSchema,
+    TimeSchema,
+)
 from dj_openapi.settings import OPENAPI_PATH_TYPES, USER_BUILD_RULES
 from dj_openapi.typing import BuildHook, Predicate
 
@@ -16,17 +27,17 @@ STR_TO_PYTHON = {
 }
 STR_TO_PYTHON.update(OPENAPI_PATH_TYPES)
 
-PYTHON_PRIMITIVES_TO_OPENAPI: dict[type, Schema] = {
-    str: Schema(Schema.Type.STRING),
-    int: Schema(Schema.Type.INTEGER),
-    bool: Schema(Schema.Type.BOOLEAN),
-    float: Schema(Schema.Type.NUMBER, format="double"),
-    Decimal: Schema(Schema.Type.NUMBER, format="double"),
-    bytes: Schema(Schema.Type.STRING, format="binary"),
-    date: Schema(Schema.Type.STRING, format="date"),
-    datetime: Schema(Schema.Type.STRING, format="date-time"),
-    time: Schema(Schema.Type.STRING, format="time"),
-    NoneType: Schema(Schema.Type.NULL),
+PYTHON_PRIMITIVES_TO_OPENAPI: dict[type, type[Schema]] = {
+    str: StrSchema,
+    int: IntSchema,
+    bool: BoolSchema,
+    float: DoubleSchema,
+    Decimal: DoubleSchema,
+    bytes: BytesSchema,
+    date: DateSchema,
+    datetime: DateTimeSchema,
+    time: TimeSchema,
+    NoneType: NullSchema,
 }
 
 
@@ -37,7 +48,7 @@ class BaseSchemaBuilder:
         return USER_BUILD_RULES + [
             (
                 PYTHON_PRIMITIVES_TO_OPENAPI.__contains__,
-                lambda t, _: PYTHON_PRIMITIVES_TO_OPENAPI[t],
+                lambda t, _: PYTHON_PRIMITIVES_TO_OPENAPI[t](),
             ),
             (lambda t: t is Any, lambda _, __: Schema()),
         ]

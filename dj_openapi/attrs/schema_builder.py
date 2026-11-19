@@ -30,11 +30,18 @@ from dj_openapi.data import (
     ApiKey,
     ApiKeySecurityScheme,
     ArraySchema,
+    BoolSchema,
+    BytesSchema,
     Components,
+    DateSchema,
+    DateTimeSchema,
+    DoubleSchema,
     Http,
     HttpSecurityScheme,
+    IntSchema,
     MediaType,
     Metadata,
+    NullSchema,
     OAuth2,
     OAuth2SecurityScheme,
     OAuth2SecuritySchemeFlows,
@@ -51,6 +58,8 @@ from dj_openapi.data import (
     Schema,
     SecurityScheme,
     StatusCodeType,
+    StrSchema,
+    TimeSchema,
     get_http_response_description,
 )
 from dj_openapi.typing import (
@@ -101,18 +110,18 @@ except ImportError:
 
     NODEFAULT = object()
 
-MSGSPEC_PRIMITIVES_TO_OPENAPI: dict[type, Schema] = {
-    AnyType: Schema(),
-    StrType: Schema(Schema.Type.STRING),
-    IntType: Schema(Schema.Type.INTEGER),
-    BoolType: Schema(Schema.Type.BOOLEAN),
-    FloatType: Schema(Schema.Type.NUMBER, format="double"),
-    DecimalType: Schema(Schema.Type.NUMBER, format="double"),
-    BytesType: Schema(Schema.Type.STRING, format="binary"),
-    DateType: Schema(Schema.Type.STRING, format="date"),
-    DateTimeType: Schema(Schema.Type.STRING, format="date-time"),
-    TimeType: Schema(Schema.Type.STRING, format="time"),
-    NoneType: Schema(Schema.Type.NULL),
+MSGSPEC_PRIMITIVES_TO_OPENAPI: dict[type, type[Schema]] = {
+    AnyType: Schema,
+    StrType: StrSchema,
+    IntType: IntSchema,
+    BoolType: BoolSchema,
+    FloatType: DoubleSchema,
+    DecimalType: DoubleSchema,
+    BytesType: BytesSchema,
+    DateType: DateSchema,
+    DateTimeType: DateTimeSchema,
+    TimeType: TimeSchema,
+    NoneType: NullSchema,
 }
 
 
@@ -188,7 +197,7 @@ class SchemaBuilder(BaseSchemaBuilder):
                     path_param,
                     Parameter.Kind.PATH,
                     True,
-                    schema=PYTHON_PRIMITIVES_TO_OPENAPI.get(t),
+                    schema=PYTHON_PRIMITIVES_TO_OPENAPI.get(t)(),
                 )
             )
 
@@ -414,7 +423,7 @@ class SchemaBuilder(BaseSchemaBuilder):
             rules = [
                 (
                     lambda t: MSGSPEC_PRIMITIVES_TO_OPENAPI.get(type(t), False),
-                    lambda t, _: MSGSPEC_PRIMITIVES_TO_OPENAPI[type(t)],
+                    lambda t, _: MSGSPEC_PRIMITIVES_TO_OPENAPI[type(t)](),
                 ),
                 (lambda t: type(t) is DictType, self._handle_msgspec_dict),
                 (lambda t: type(t) is LiteralType, self._handle_msgspec_literal),
@@ -473,7 +482,8 @@ class SchemaBuilder(BaseSchemaBuilder):
 
     def _handle_literal(self, type, _):
         ty = get_args(type)
-        if schema := PYTHON_PRIMITIVES_TO_OPENAPI.get(ty, False):
+        if sch := PYTHON_PRIMITIVES_TO_OPENAPI.get(ty, False):
+            schema = sch()
             schema.enum = list(type.__args__)
             return schema
         else:
@@ -533,8 +543,9 @@ class SchemaBuilder(BaseSchemaBuilder):
     def _handle_msgspec_literal(self, t, _) -> Schema:
         literals = t.values
         if sch := PYTHON_PRIMITIVES_TO_OPENAPI.get(type(literals[0]), False):
-            sch.enum = list(literals)
-            return sch
+            schema = sch()
+            schema.enum = list(literals)
+            return schema
         return Schema(Schema.Type.STRING, enum=list(literals))
 
     def _handle_msgspec_refrence(self, t, _) -> Reference:

@@ -6,14 +6,24 @@ from dj_openapi.data import (
     AnySchema,
     ApiKeySecurityScheme,
     ArraySchema,
+    BoolSchema,
+    BytesSchema,
     Components,
+    DateSchema,
+    DateTimeSchema,
+    DoubleSchema,
     HttpSecurityScheme,
+    IntSchema,
+    NullSchema,
     OAuth2SecurityScheme,
     OneOfSchema,
     OpenIdSecurityScheme,
     Parameter,
     Reference,
     Schema,
+    StrSchema,
+    TimeSchema,
+    TypeSchema,
 )
 from dj_openapi.settings import JSON_SERIALIZER, YAML_SERIALIZER
 from dj_openapi.typing import SerializerProtocol
@@ -55,9 +65,11 @@ def register(converter):
         return converter.structure(val, Schema)
 
     converter.register_structure_hook(AnySchema | Reference, _structure_schemas)
-    converter.register_structure_hook(Schema | Reference, _structure_schema_or_ref)
     converter.register_structure_hook(
-        Schema | ArraySchema | Reference,
+        Schema | TypeSchema | Reference, _structure_schema_or_ref
+    )
+    converter.register_structure_hook(
+        Schema | TypeSchema | ArraySchema | Reference,
         lambda v, _: (
             converter.structure(v, Reference)
             if "$ref" in v
@@ -69,7 +81,7 @@ def register(converter):
         ),
     )
     converter.register_structure_hook(
-        bool | Schema | Reference,
+        bool | Schema | TypeSchema | Reference,
         lambda v, _: (
             v
             if isinstance(v, bool)
@@ -126,6 +138,33 @@ def register(converter):
             Components, converter, security_schemes=override(rename="securitySchemes")
         ),
     )
+    for t in (
+        BytesSchema,
+        DateSchema,
+        DateTimeSchema,
+        TimeSchema,
+        DoubleSchema,
+    ):
+        converter.register_unstructure_hook(
+            t,
+            make_dict_unstructure_fn(
+                t,
+                converter,
+                _cattrs_omit_if_default=True,
+                type=override(omit_if_default=False),
+                format=override(omit_if_default=False),
+            ),
+        )
+    for t in (StrSchema, BoolSchema, NullSchema, IntSchema):
+        converter.register_unstructure_hook(
+            t,
+            make_dict_unstructure_fn(
+                t,
+                converter,
+                _cattrs_omit_if_default=True,
+                type=override(omit_if_default=False),
+            ),
+        )
     converter.register_unstructure_hook(
         Reference,
         make_dict_unstructure_fn(Reference, converter, ref=override(rename="$ref")),
