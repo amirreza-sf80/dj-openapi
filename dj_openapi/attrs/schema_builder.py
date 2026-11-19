@@ -340,8 +340,8 @@ class SchemaBuilder(BaseSchemaBuilder):
                 continue
 
             a_type = a.type
-            # if a_type in self.generic_mapping:
-            #     a_type = self.generic_mapping[a_type]
+            if not isinstance(a_type, Type) and a_type in self.generic_mapping:
+                a_type = self.generic_mapping[a_type]
 
             schema = self.get_schema_for_type(a_type, is_response=is_response)
             properties[a.name] = schema
@@ -477,40 +477,35 @@ class SchemaBuilder(BaseSchemaBuilder):
         """Used for generic attrs classes (Generic[int] instead of just Generic)."""
         return type.__name__ + "[" + ", ".join(t.__name__ for t in type.__args__) + "]"
 
-    def _handle_msgspec(self, type, _) -> AnySchema | Reference:
-        if isinstance(type, AnyType):
-            return Schema()
-        if isinstance(type, BoolType):
-            return Schema(Schema.Type.BOOLEAN)
-        if isinstance(type, BytesType):
-            return Schema(Schema.Type.STRING, format="binary")
-        if isinstance(type, (DataclassType, StructType)):
-            return self._handle_msgspec_refrence(type, _)
-        if isinstance(type, DateTimeType):
-            return Schema(Schema.Type.STRING, format="date-time")
-        if isinstance(type, DateType):
-            return Schema(Schema.Type.STRING, format="date")
-        if isinstance(type, DecimalType):
-            return Schema(Schema.Type.NUMBER, format="double")
-        if isinstance(type, DictType):
-            return self._handle_msgspec_dict(type, _)
-        if isinstance(type, FloatType):
-            return Schema(Schema.Type.NUMBER, format="double")
-        if isinstance(type, IntType):
-            return Schema(Schema.Type.INTEGER)
-        if isinstance(type, (ListType, TupleType, VarTupleType)):
-            return self._handle_msgspec_array(type, _)
-        if isinstance(type, LiteralType):
-            return self._handle_msgspec_literal(type, _)
-        if isinstance(type, NoneType):
-            return Schema(Schema.Type.NULL)
-        if isinstance(type, StrType):
-            return Schema(Schema.Type.STRING)
-        if isinstance(type, TimeType):
-            return Schema(Schema.Type.STRING, format="time")
-        if isinstance(type, UnionType):
-            return self._handle_msgspec_union(type, _)
-        raise ValueError(f"type of {type} is not supported")
+    def _handle_msgspec(self, t, _) -> AnySchema | Reference:
+        MSGSPEC_PRIMITIVES_TO_OPENAPI: dict[type | None, Schema] = {
+            AnyType: Schema(),
+            StrType: Schema(Schema.Type.STRING),
+            IntType: Schema(Schema.Type.INTEGER),
+            BoolType: Schema(Schema.Type.BOOLEAN),
+            FloatType: Schema(Schema.Type.NUMBER, format="double"),
+            DecimalType: Schema(Schema.Type.NUMBER, format="double"),
+            BytesType: Schema(Schema.Type.STRING, format="binary"),
+            DateType: Schema(Schema.Type.STRING, format="date"),
+            DateTimeType: Schema(Schema.Type.STRING, format="date-time"),
+            TimeType: Schema(Schema.Type.STRING, format="time"),
+            NoneType: Schema(Schema.Type.NULL),
+        }
+        spec_type = type(t)
+
+        if schema := MSGSPEC_PRIMITIVES_TO_OPENAPI.get(spec_type, None):
+            return schema
+        if spec_type in (DataclassType, StructType):
+            return self._handle_msgspec_refrence(t, _)
+        if spec_type is DictType:
+            return self._handle_msgspec_dict(t, _)
+        if spec_type in (ListType, TupleType, VarTupleType):
+            return self._handle_msgspec_array(t, _)
+        if spec_type is LiteralType:
+            return self._handle_msgspec_literal(t, _)
+        if spec_type is UnionType:
+            return self._handle_msgspec_union(t, _)
+        raise ValueError(f"type of {t} is not supported")
 
     def _handle_msgspec_dict(self, type, _) -> Schema:
         k = type.key_type

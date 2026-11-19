@@ -12,6 +12,7 @@ from dj_openapi.data import (
     Components,
     PathItem,
     QueryParam,
+    Reference,
 )
 
 type PATH_PARAM_PARSER = Callable[[str], tuple[str, list[str], str]]
@@ -27,7 +28,7 @@ type REQUEST_BODY = MODEL | Iterable[MODEL] | None
 type FORM_BODY = MODEL | Iterable[MODEL] | None
 
 type Predicate = Callable[[Any], bool]
-type BuildHook = Callable[[Any, bool], AnySchema]
+type BuildHook = Callable[[Any, bool], AnySchema | Reference]
 
 
 class SchemaProtocol(Protocol):
