@@ -58,6 +58,7 @@ class Workplace:
     start_holidy: DateTimeField = field(
         metadata={"example": datetime(year=2060, month=12, day=29, hour=23, minute=59)}
     )
+    abc: Literal["abc"]
 
 
 @dataclass

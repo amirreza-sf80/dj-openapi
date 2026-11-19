@@ -101,6 +101,20 @@ except ImportError:
 
     NODEFAULT = object()
 
+MSGSPEC_PRIMITIVES_TO_OPENAPI: dict[type, Schema] = {
+    AnyType: Schema(),
+    StrType: Schema(Schema.Type.STRING),
+    IntType: Schema(Schema.Type.INTEGER),
+    BoolType: Schema(Schema.Type.BOOLEAN),
+    FloatType: Schema(Schema.Type.NUMBER, format="double"),
+    DecimalType: Schema(Schema.Type.NUMBER, format="double"),
+    BytesType: Schema(Schema.Type.STRING, format="binary"),
+    DateType: Schema(Schema.Type.STRING, format="date"),
+    DateTimeType: Schema(Schema.Type.STRING, format="date-time"),
+    TimeType: Schema(Schema.Type.STRING, format="time"),
+    NoneType: Schema(Schema.Type.NULL),
+}
+
 
 def is_file(type):
     if is_annotated(type):
@@ -397,7 +411,23 @@ class SchemaBuilder(BaseSchemaBuilder):
         ]
 
         if has_msgspec:
-            rules.insert(0, (lambda t: isinstance(t, Type), self._handle_msgspec))
+            rules = [
+                (
+                    lambda t: MSGSPEC_PRIMITIVES_TO_OPENAPI.get(type(t), False),
+                    lambda t, _: MSGSPEC_PRIMITIVES_TO_OPENAPI[type(t)],
+                ),
+                (lambda t: type(t) is DictType, self._handle_msgspec_dict),
+                (lambda t: type(t) is LiteralType, self._handle_msgspec_literal),
+                (lambda t: type(t) is UnionType, self._handle_msgspec_union),
+                (
+                    lambda t: type(t) in (DataclassType, StructType),
+                    self._handle_msgspec_refrence,
+                ),
+                (
+                    lambda t: type(t) in (ListType, TupleType, VarTupleType),
+                    self._handle_msgspec_array,
+                ),
+            ] + rules
         return rules
 
     def _handle_array(self, t, _) -> ArraySchema:
@@ -443,8 +473,7 @@ class SchemaBuilder(BaseSchemaBuilder):
 
     def _handle_literal(self, type, _):
         ty = get_args(type)
-        if ty in PYTHON_PRIMITIVES_TO_OPENAPI:
-            schema = PYTHON_PRIMITIVES_TO_OPENAPI[ty]
+        if schema := PYTHON_PRIMITIVES_TO_OPENAPI.get(ty, False):
             schema.enum = list(type.__args__)
             return schema
         else:
@@ -477,43 +506,13 @@ class SchemaBuilder(BaseSchemaBuilder):
         """Used for generic attrs classes (Generic[int] instead of just Generic)."""
         return type.__name__ + "[" + ", ".join(t.__name__ for t in type.__args__) + "]"
 
-    def _handle_msgspec(self, t, _) -> AnySchema | Reference:
-        MSGSPEC_PRIMITIVES_TO_OPENAPI: dict[type | None, Schema] = {
-            AnyType: Schema(),
-            StrType: Schema(Schema.Type.STRING),
-            IntType: Schema(Schema.Type.INTEGER),
-            BoolType: Schema(Schema.Type.BOOLEAN),
-            FloatType: Schema(Schema.Type.NUMBER, format="double"),
-            DecimalType: Schema(Schema.Type.NUMBER, format="double"),
-            BytesType: Schema(Schema.Type.STRING, format="binary"),
-            DateType: Schema(Schema.Type.STRING, format="date"),
-            DateTimeType: Schema(Schema.Type.STRING, format="date-time"),
-            TimeType: Schema(Schema.Type.STRING, format="time"),
-            NoneType: Schema(Schema.Type.NULL),
-        }
-        spec_type = type(t)
-
-        if schema := MSGSPEC_PRIMITIVES_TO_OPENAPI.get(spec_type, None):
-            return schema
-        if spec_type in (DataclassType, StructType):
-            return self._handle_msgspec_refrence(t, _)
-        if spec_type is DictType:
-            return self._handle_msgspec_dict(t, _)
-        if spec_type in (ListType, TupleType, VarTupleType):
-            return self._handle_msgspec_array(t, _)
-        if spec_type is LiteralType:
-            return self._handle_msgspec_literal(t, _)
-        if spec_type is UnionType:
-            return self._handle_msgspec_union(t, _)
-        raise ValueError(f"type of {t} is not supported")
-
     def _handle_msgspec_dict(self, type, _) -> Schema:
         k = type.key_type
         if not isinstance(k, (AnyType, StrType)):
             raise TypeError(
                 f"dictionary needs to have a key of type str or Any, used {k}"
             )
-        v = self._handle_msgspec(type.value_type, _)
+        v = self.get_schema_for_type(type.value_type, _)
         return Schema(Schema.Type.OBJECT, additionalProperties=v)
 
     def _handle_msgspec_array(self, type, _) -> ArraySchema:
@@ -523,20 +522,19 @@ class SchemaBuilder(BaseSchemaBuilder):
             if len(type.item_types) > 1:
                 raise TypeError("tuples need to be homogeneous")
             t = type.item_types[0]
-        return ArraySchema(self._handle_msgspec(t, _))
+        return ArraySchema(self.get_schema_for_type(t, _))
 
     def _handle_msgspec_union(self, type, _) -> OneOfSchema:
         refs = []
         for t in type.types:
-            refs.append(self._handle_msgspec(t, _))
+            refs.append(self.get_schema_for_type(t, _))
         return OneOfSchema(refs)
 
     def _handle_msgspec_literal(self, t, _) -> Schema:
         literals = t.values
-        if type(literals[0] in PYTHON_PRIMITIVES_TO_OPENAPI):
-            schema = PYTHON_PRIMITIVES_TO_OPENAPI[type(literals[0])]
-            schema.enum = list(literals)
-            return schema
+        if sch := PYTHON_PRIMITIVES_TO_OPENAPI.get(type(literals[0]), False):
+            sch.enum = list(literals)
+            return sch
         return Schema(Schema.Type.STRING, enum=list(literals))
 
     def _handle_msgspec_refrence(self, t, _) -> Reference:

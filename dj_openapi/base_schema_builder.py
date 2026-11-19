@@ -16,7 +16,7 @@ STR_TO_PYTHON = {
 }
 STR_TO_PYTHON.update(OPENAPI_PATH_TYPES)
 
-PYTHON_PRIMITIVES_TO_OPENAPI: dict[type | None, Schema] = {
+PYTHON_PRIMITIVES_TO_OPENAPI: dict[type, Schema] = {
     str: Schema(Schema.Type.STRING),
     int: Schema(Schema.Type.INTEGER),
     bool: Schema(Schema.Type.BOOLEAN),
