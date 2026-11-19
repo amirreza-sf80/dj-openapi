@@ -107,7 +107,18 @@ class API:
 
 # ----------------------- openapi --------------------------------
 
-type AnySchema = Schema | ArraySchema | OneOfSchema
+type TypeSchema = (
+    BytesSchema
+    | StrSchema
+    | DateSchema
+    | DateTimeSchema
+    | TimeSchema
+    | IntSchema
+    | BoolSchema
+    | DoubleSchema
+    | NullSchema
+)
+type AnySchema = Schema | TypeSchema | ArraySchema | OneOfSchema
 
 
 @dataclass
@@ -136,6 +147,56 @@ class Schema:
     enum: list[str] | None = None
     required: list[str] = field(default_factory=list)
     example: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class BytesSchema(Schema):
+    type: Literal[Schema.Type.STRING] = Schema.Type.STRING
+    format: Literal["binary"] = "binary"
+
+
+@dataclass
+class StrSchema(Schema):
+    type: Literal[Schema.Type.STRING] = Schema.Type.STRING
+
+
+@dataclass
+class DateSchema(Schema):
+    type: Literal[Schema.Type.STRING] = Schema.Type.STRING
+    format: Literal["date"] = "date"
+
+
+@dataclass
+class DateTimeSchema(Schema):
+    type: Literal[Schema.Type.STRING] = Schema.Type.STRING
+    format: Literal["date-time"] = "date-time"
+
+
+@dataclass
+class TimeSchema(Schema):
+    type: Literal[Schema.Type.STRING] = Schema.Type.STRING
+    format: Literal["time"] = "time"
+
+
+@dataclass
+class IntSchema(Schema):
+    type: Literal[Schema.Type.INTEGER] = Schema.Type.INTEGER
+
+
+@dataclass
+class BoolSchema(Schema):
+    type: Literal[Schema.Type.BOOLEAN] = Schema.Type.BOOLEAN
+
+
+@dataclass
+class DoubleSchema(Schema):
+    type: Literal[Schema.Type.NUMBER] = Schema.Type.NUMBER
+    format: Literal["double"] = "double"
+
+
+@dataclass
+class NullSchema(Schema):
+    type: Literal[Schema.Type.NULL] = Schema.Type.NULL
 
 
 @dataclass
