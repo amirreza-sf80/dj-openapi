@@ -18,12 +18,10 @@ def serve_openapi(request):
     openapi = make_openapi_spec()
 
     if json_serializer:
-        un = json_serializer.unstructure(openapi)
-        payload = json_serializer.dumps(un)
+        payload = json_serializer.dumps(openapi)
         return HttpResponse(payload, status=200, content_type="application/json")
     elif yaml_serializer:
-        un = yaml_serializer.unstructure(openapi)
-        payload = yaml_serializer.dumps(un)
+        payload = yaml_serializer.dumps(openapi)
         return HttpResponse(payload, status=200, content_type="application/yaml")
     else:
         raise SerializerNotConfigured()
