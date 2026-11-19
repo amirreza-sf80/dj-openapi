@@ -6,7 +6,12 @@ from django.http import HttpResponse
 from dj_openapi import get, head, open_api, options, post, trace
 from dj_openapi.data import ApiKey, Http, OAuth2, OAuth2Flows, OpenId, QueryParam
 
-from .data import Cinema, Movie, Person, School, Workplace
+from .data import Car, Cinema, Movie, Person, School, Workplace
+
+
+@get(response_body={200: Car})
+def car_view(request):
+    return HttpResponse()
 
 
 @get(qs={"something": str}, tags=("things",), security=ApiKey(name="whee"))

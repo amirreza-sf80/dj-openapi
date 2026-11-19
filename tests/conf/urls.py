@@ -6,6 +6,7 @@ from dj_openapi.attrs.views import (
 from dj_openapi.views import serve_elements, serve_redoc, serve_swaggerui
 
 from .views import (
+    car_view,
     cinema_detail,
     movie_detail,
     my_view,
@@ -22,6 +23,7 @@ from .views import (
 )
 
 urlpatterns = [
+    path("car/", car_view, name="car-view"),
     path("", my_view, name="my-view"),
     path("person/", person_view, name="person-view"),
     path("person/post/", person_post_view, name="person-post-view"),
