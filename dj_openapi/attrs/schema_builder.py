@@ -1,3 +1,4 @@
+import types
 from collections.abc import Iterable
 from dataclasses import _MISSING_TYPE, is_dataclass
 from dataclasses import fields as dt_fields
@@ -191,13 +192,13 @@ class SchemaBuilder(BaseSchemaBuilder):
         for path_param in path_params:
             if path_param not in sig.parameters:
                 raise ValueError(f"Path parameter {path_param} not found")
-            t = STR_TO_PYTHON.get(path[2], None)
+            t = STR_TO_PYTHON.get(path[2], types.NoneType)
             params.append(
                 Parameter(
                     path_param,
                     Parameter.Kind.PATH,
                     True,
-                    schema=PYTHON_PRIMITIVES_TO_OPENAPI.get(t)(),
+                    schema=PYTHON_PRIMITIVES_TO_OPENAPI[t](),
                 )
             )
 
