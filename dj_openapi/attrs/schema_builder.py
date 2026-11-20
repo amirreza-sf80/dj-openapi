@@ -98,6 +98,20 @@ try:
         type_info,
     )
 
+    MSGSPEC_PRIMITIVES_TO_OPENAPI: dict[type, type[Schema]] = {
+        AnyType: Schema,
+        StrType: StrSchema,
+        IntType: IntSchema,
+        BoolType: BoolSchema,
+        FloatType: DoubleSchema,
+        DecimalType: DoubleSchema,
+        BytesType: BytesSchema,
+        DateType: DateSchema,
+        DateTimeType: DateTimeSchema,
+        TimeType: TimeSchema,
+        NoneType: NullSchema,
+    }
+
     has_msgspec = True
 except ImportError:
     has_msgspec = False
@@ -109,20 +123,6 @@ except ImportError:
         pass
 
     NODEFAULT = object()
-
-MSGSPEC_PRIMITIVES_TO_OPENAPI: dict[type, type[Schema]] = {
-    AnyType: Schema,
-    StrType: StrSchema,
-    IntType: IntSchema,
-    BoolType: BoolSchema,
-    FloatType: DoubleSchema,
-    DecimalType: DoubleSchema,
-    BytesType: BytesSchema,
-    DateType: DateSchema,
-    DateTimeType: DateTimeSchema,
-    TimeType: TimeSchema,
-    NoneType: NullSchema,
-}
 
 
 def is_file(type):
