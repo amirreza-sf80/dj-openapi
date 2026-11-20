@@ -145,7 +145,7 @@ class SchemaBuilder(BaseSchemaBuilder):
         self.path_param_parser = path_param_parser
         self.summary_reader = summary_reader
         self.description_reader = description_reader
-        self.names: dict[type, str] = {}
+        self.names: dict[tuple[type, bool], str] = {}
         self._components: dict[str, AnySchema | Reference] = {}
         self._security_components: dict[str, SecurityScheme] = {}
         self.path_items: dict[URL, PathItem] = {}
@@ -334,7 +334,7 @@ class SchemaBuilder(BaseSchemaBuilder):
 
         if has(type) or is_dataclass(type) or issubclass(type, Struct):
             # components are build elsewhere, here we just reference the component
-            name = self._name_for(type)
+            name = self._name_for(type, is_response)
             if name not in self._components:
                 self.make_component(type, name, is_response=is_response)
             return Reference(f"#/components/schemas/{name}")
@@ -501,8 +501,8 @@ class SchemaBuilder(BaseSchemaBuilder):
 
         return res
 
-    def _name_for(self, type: Any) -> str:
-        if type not in self.names:
+    def _name_for(self, type: Any, is_response=False) -> str:
+        if (type, is_response) not in self.names:
             name = (
                 type.__name__ if not is_generic(type) else self._make_generic_name(type)
             )
@@ -510,8 +510,8 @@ class SchemaBuilder(BaseSchemaBuilder):
             while name in self.names.values():
                 name = f"{type.__name__}{counter}"
                 counter += 1
-            self.names[type] = name
-        return self.names[type]
+            self.names[(type, is_response)] = name
+        return self.names[(type, is_response)]
 
     def _make_generic_name(self, type: type[Any]) -> str:
         """Used for generic attrs classes (Generic[int] instead of just Generic)."""
@@ -550,7 +550,7 @@ class SchemaBuilder(BaseSchemaBuilder):
         return Schema(Schema.Type.STRING, enum=list(literals))
 
     def _handle_msgspec_refrence(self, t, _) -> Reference:
-        name = self._name_for(t.cls)
+        name = self._name_for(t.cls, _)
         if name not in self._components:
             self.make_component(t, name, is_response=_)
         return Reference(f"#/components/schemas/{name}")
