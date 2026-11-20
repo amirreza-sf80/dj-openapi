@@ -411,7 +411,6 @@ class SchemaBuilder(BaseSchemaBuilder):
 
     def default_build_rules(self) -> list[tuple[Predicate, BuildHook]]:
         """Set up the default build rules."""
-        # For circular deps.
         rules = super().default_build_rules() + [
             (lambda t: is_tuple(t) or is_sequence(t), self._handle_array),
             (is_mapping, self._handle_mapping),
@@ -423,7 +422,7 @@ class SchemaBuilder(BaseSchemaBuilder):
         if has_msgspec:
             rules = [
                 (
-                    lambda t: MSGSPEC_PRIMITIVES_TO_OPENAPI.get(type(t), False),
+                    lambda t: MSGSPEC_PRIMITIVES_TO_OPENAPI.__contains__(type(t)),
                     lambda t, _: MSGSPEC_PRIMITIVES_TO_OPENAPI[type(t)](),
                 ),
                 (lambda t: type(t) is DictType, self._handle_msgspec_dict),
